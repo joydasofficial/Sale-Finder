@@ -3,25 +3,44 @@ const ErrorResponse = require("../../utils/errorResponse");
 const sendEmail = require('../../utils/sendEmail');
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
+const {UserInputError} = require('apollo-server');
 
 module.exports = {
     Query: {
-        
+       
     },
     Mutation: {
         async register(_, {registerInput: {username, email, password, cpassword}}, context, info){
             try {
                 const userStatus = "pending";
                 const otpToken = Math.floor(100000 + Math.random() * 900000);
-                const otpTokenExpire = Date.now() + 10 * (6*10000);
+                const otpTokenExpire = Date.now() + 10 * (6*100000);
+
+                const alreadyRegistered = await User.findOne({email});
+                if(alreadyRegistered){
+                  throw new UserInputError('User already exist',{
+                    error: {
+                      email: 'User already exist'
+                    }
+                  })
+                }
+
+                if(password !== cpassword){
+                  throw new UserInputError('Password doesnt match',{
+                    error: {
+                      password: 'Password does not match'
+                    }
+                  }) 
+                }
             
                 const user = await User.create({
                   username,
-                  email,
+                  email: email.toLowerCase(),
                   password,
                   userStatus,
                   otpToken,
                   otpTokenExpire,
+                  createdAt: Date.now(),
                 });
             
                 const token = authToken(user);
@@ -49,141 +68,186 @@ module.exports = {
               } catch (error) {
                   return error;
               }
+        },
+        async verifyUser(_, {email, otpToken}){
+          try {
+            const user = await User.findOne({email, otpTokenExpire : { $gt : Date.now()}});
+            
+            if(!user){
+              throw new UserInputError('User not found',{
+                error: {
+                  user: 'User not found'
+                }
+              })
+            }
+        
+            const isOtpMatch = await user.matchOtp(otpToken);
+        
+            if(!isOtpMatch){
+              throw new UserInputError('OTP is not valid',{
+                error: {
+                  otpToken: 'OTP not valid'
+                }
+              })
+            }
+        
+            user.userStatus = "verified";
+            user.otpToken = undefined;
+            user.otpTokenExpire = undefined;
+        
+            const verifiedUserData = await user.save();
+        
+            return {
+              ...verifiedUserData._doc,
+              id: verifiedUserData.__id,
+            }
+
+          } catch (error) {
+              throw new Error(error);
+          }
+        },
+        async login(_, {email, password}){              
+          try {
+            if(!email || !password){
+              throw new UserInputError('Email and password cant be empty',{
+                error: {
+                  email: 'Email and password cant be null'
+                }
+              })
+            }
+
+            const user = await User.findOne({email}).select("+password");
+
+            if(!user){
+              throw new UserInputError('Invalid Credentials', {
+                error: {
+                  email : 'Invalid Credentials'
+                }
+              })
+            }
+
+            const isMatch = await user.matchPassword(password);
+
+            if(!isMatch){
+              throw new UserInputError('Invalid Credentials', {
+                error: {
+                  password : 'Invalid Credentials'
+                }
+              })
+            }
+
+            const token = authToken(user);
+
+            return {
+              ...user._doc,
+              id: user.__id,
+              token
+            }
+          } catch (error) {
+              throw new Error(error);
+          }
+        },
+        async forgotPassword(_, {email}){
+          try {
+            if(!email){
+              throw new UserInputError('Email cannot be empty',{
+                error: {
+                  email: 'Email cant be empty'
+                }
+              })
+            }
+        
+            const user = await User.findOne({email});
+        
+            if(!user){
+              throw new UserInputError('User not found',{
+                error: {
+                  email: 'User not found'
+                }
+              })
+            }
+        
+            const resetPasswordToken = await user.getResetPasswordToken();
+        
+            await user.save();
+        
+            const resetURL = `http://localhost:3000/passwordreset/${resetPasswordToken}`;
+            const message = `
+            <h1>You have requested for password reset</h1>
+            <p>Please follow this link to reset the password</p>
+            <a href=${resetURL} clicktracking=off>${resetURL}</a>`;
+        
+            try {
+              await sendEmail({
+                to: user.email,
+                subject: "Password reset request",
+                text: message,
+              })
+        
+              return {message: 'Email sent, please check your inbox', email: user.email}
+            } catch (error) {
+                user.resetPasswordToken = undefined;
+                user.resetPasswordExpire = undefined;
+        
+                await user.save();
+        
+                throw new Error('Email could not be sent')
+            }
+          } catch (error) {
+            throw new Error(error)
+          }
+        },
+        async resetPassword(_, {resetToken, email, password, cpassword}){
+          //when frontend is ready check email usage once
+          const resetTokenCheck = crypto.createHash("sha256").update(resetToken).digest("hex");
+            try {
+              if(!resetToken){
+                throw new UserInputError('Empty token', {
+                  error: {
+                    token: 'Please enter token'
+                  }
+                })
+              }
+
+              const user = await User.findOne({
+                email,
+                resetToken:resetTokenCheck,
+                resetPasswordExpire : {$gt : Date.now()}
+              })
+
+              if(!user){
+                throw new UserInputError('Invalid Token', {
+                  error: {
+                    token: 'Invalid Token'
+                  }
+                })
+              }
+
+              if(password !== cpassword){
+                throw new UserInputError('Password does not match', {
+                  error: {
+                    password: 'Password does not match'
+                  }
+                })
+              }
+
+              user.password = password;
+              user.resetPasswordToken = undefined;
+              user.resetPasswordExpire = undefined;
+
+              const userData = await user.save();
+
+              return {
+                ...userData._doc,
+                id: userData.__id,
+                message: 'Password changed sucessfully'
+              }
+            } catch (error) {
+              throw new Error(error)
+            }
         }
     }
 }
-
-exports.verifyUser = async (req, res, next) => {
-  let {otpToken, email} = req.body;
-  try {
-    const user = await User.findOne({email, otpTokenExpire : { $gt : Date.now()}});
-
-    if(!user){
-      return next(new ErrorResponse("User not found", 404));
-    }
-
-    const isOtpMatch = user.matchOtp(otpToken);
-
-    if(!isOtpMatch){
-      return next(new ErrorResponse("Invalid/Expired OTP", 400));
-    }
-
-    user.userStatus = "verified";
-    user.otpToken = undefined;
-    user.otpTokenExpire = undefined;
-
-    await user.save();
-
-    res.status(200).json({
-      success: true,
-      message: "User successfully verified"
-    })
-  } catch (error) {
-    return next(new ErrorResponse("User verification failed", 500));
-  }
-}
-
-exports.login = async (req, res, next) => {
-  const { email, password } = req.body;
-
-  try {
-    if(!email || !password){
-      return next(new ErrorResponse("Please enter email and password", 400));
-    }
-
-    const user = await User.findOne({email}).select("+password");
-
-    if(!user){
-      return next(new ErrorResponse("Invalid Credentials", 404));
-    }
-
-    const isMatch = await user.matchPassword(password);
-
-    if(!isMatch){
-      return next(new ErrorResponse("Invalid Credentials", 401));
-    }
-
-    authToken(user, 200, res);
-  } catch (error) {
-    next(new ErrorResponse("Login Failed", 400));
-  }
-};
-
-exports.forgotPassword = async (req, res, next) => {
-  const {email} = req.body;
-
-  try {
-    if(!email){
-      return next(new ErrorResponse("Please enter an email", 400));
-    }
-
-    const user = await User.findOne({email});
-
-    if(!user){
-      return next(new ErrorResponse("User not found", 401));
-    }
-
-    const resetPasswordToken = await user.getResetPasswordToken();
-
-    await user.save();
-
-    const resetURL = `http://localhost:3000/passwordreset/${resetPasswordToken}`;
-    const message = `
-    <h1>You have requested for password reset</h1>
-    <p>Please follow this link to reset the password</p>
-    <a href=${resetURL} clicktracking=off>${resetURL}</a>`;
-
-    try {
-      await sendEmail({
-        to: user.email,
-        subject: "Password reset request",
-        text: message,
-      })
-
-      res.status(200).json({
-        success: true,
-        message: "Email sent"
-      });
-    } catch (error) {
-        user.resetPasswordToken = undefined;
-        user.resetPasswordExpire = undefined;
-
-        await user.save();
-
-        return next(new ErrorResponse("Email could not be sent", 500));
-    }
-  } catch (error) {
-    next(error);
-  }
-};
-
-exports.resetPassword = async (req, res, next) => {
-  const resetToken = crypto.createHash("sha256").update(req.params.resetToken).digest("hex");
-
-  try {
-    const user = await User.findOne({
-      resetToken,
-      resetPasswordExpire : {$gt : Date.now()}
-    })
-
-    if(!user){
-      return next(new ErrorResponse("Invalid Token"));
-    }
-
-    user.password = req.body.password;
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpire = undefined;
-
-    await user.save();
-
-    res.status(200).json({
-      success: true,
-      message: "Password reset successfull"
-    })
-  } catch (error) {
-    return next(error);
-  }
-};
 
 const authToken = (user) => {
   const token = user.getSignedToken();

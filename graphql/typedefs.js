@@ -23,10 +23,14 @@ module.exports = gql`
     }
 
     type Query{
-        login(email: String!, password: String!): User
+        getInfo(email: String!): User
     }
 
     type Mutation{
         register(registerInput: RegisterInput): User
+        login(email: String!, password: String!): User
+        verifyUser(email: String!, otpToken: String!): User
+        forgotPassword(email: String!): User
+        resetPassword(resetToken: String!, email: String!, password: String!, cpassword: String!): User
     }
 `
