@@ -23,6 +23,13 @@ const userSchema = new mongoose.Schema({
       minlength: 6,
       select: false,
   },
+  mobile: {
+    type: String,
+    required: true,
+    unique: true,
+    minlength: 10,
+    maxlength: 11,
+  },
   userStatus: {
     type: String,
     required: true,
@@ -31,24 +38,26 @@ const userSchema = new mongoose.Schema({
     type: String,
     unique: true,
   },
+  createdAt: Date,
   otpTokenExpire: Date,
   resetPasswordToken: String,
   resetPasswordExpire: Date,
 });
 
 userSchema.pre("save", async function(next) {
-    if(!this.isModified("password") || !this.isModified("otpToken")){
-        next();
-    } 
 
     const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    this.otpToken = await bcrypt.hash(this.otpToken, salt);
+    if(this.isModified("password")){
+      this.password = await bcrypt.hash(this.password, salt);
+    }
+    if(this.isModified("otpToken") && this.otpToken !== undefined){
+      this.otpToken = await bcrypt.hash(this.otpToken, salt);
+    }
     next();
 })
 
 userSchema.methods.getSignedToken = function () {
-  return jwt.sign({id: this.id, username: this.username, email: this.email}, process.env.JWT_SECRET,
+  return jwt.sign({userId: this.id, username: this.username, email: this.email}, process.env.JWT_SECRET,
     {
       expiresIn: process.env.JWT_EXPIRE,
     })
@@ -66,7 +75,7 @@ userSchema.methods.getResetPasswordToken = async function(){
   const resetToken = crypto.randomBytes(20).toString("hex");
 
   this.resetPasswordToken = crypto.createHash("sha256").update(resetToken).digest("hex");
-  this.resetPasswordExpire = Date.now() + 10 * (6*1000);
+  this.resetPasswordExpire = Date.now() + 10 * (6*10000);
   
   return resetToken;
 }

@@ -1,6 +1,8 @@
 require('dotenv').config({path: "./config.env"});
 
-// const { promise } = require('') 'bcrypt/promises';
+const { applyMiddleware } = require("graphql-middleware");
+const { makeExecutableSchema } = require("@graphql-tools/schema");
+
 const express = require('express');
 const cors = require('cors'); 
 
@@ -8,7 +10,8 @@ const connectDB = require('./config/db.config');
 const errorHandler = require('./middleware/errorHandler');
 const { ApolloServer } = require('apollo-server');
 const typeDefs = require('./graphql/typedefs')
-const resolvers = require('./graphql/resolvers')
+const resolvers = require('./graphql/resolvers');
+const permissions = require('./Shield');
 
 connectDB();
 
@@ -16,13 +19,28 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 app.use(express.json());
-// app.use("/api/auth", require("./routes/auth.routes"));
-// app.use("/api/private", require("./routes/private.routes"))
-app.use(errorHandler);
+// app.use(errorHandler);
+// enable cors
+var corsOptions = {
+    origin: 'http://localhost:8000/',
+    credentials: true // <-- REQUIRED backend setting
+  };
+app.use(cors(corsOptions));
 
-const server = new ApolloServer({
+const schema = makeExecutableSchema({
     typeDefs,
     resolvers,
+})
+
+const schemaWithMiddleware = applyMiddleware(schema, permissions);
+
+const server = new ApolloServer({
+    schema: schemaWithMiddleware,
+    resolvers,
+    context: ({ req, reply }) => ({
+        req,
+        reply,
+    }),
 })
 
 server.listen(PORT, ()=>{

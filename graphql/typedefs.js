@@ -6,6 +6,7 @@ module.exports = gql`
         username: String!
         email: String!
         password: String!
+        mobile: String!
         token: String!
         createdAt: String!
         userStatus: String!
@@ -15,18 +16,23 @@ module.exports = gql`
         resetPasswordExpire: String!
     }
 
-    input RegisterInput{
+    input input{
         username: String!
         email: String!
         password: String!
         cpassword: String!
+        mobile: String!
     }
 
     type Query{
-        login(email: String!, password: String!): User
+        getInfo(email: String!): User
     }
 
     type Mutation{
-        register(registerInput: RegisterInput): User
+        register(input: input): User
+        login(email: String!, password: String!): User
+        verifyUser(email: String!, otpToken: String!): User
+        forgotPassword(email: String!): User
+        resetPassword(resetToken: String!, email: String!, password: String!, cpassword: String!): User
     }
 `
