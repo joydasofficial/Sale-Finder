@@ -10,7 +10,7 @@ module.exports = {
        
     },
     Mutation: {
-        async register(_, {registerInput: {username, email, password, cpassword}}, context, info){
+        async register(_, {input: {username, email, password, cpassword, mobile}}, context, info){
             try {
                 const userStatus = "pending";
                 const otpToken = Math.floor(100000 + Math.random() * 900000);
@@ -35,8 +35,9 @@ module.exports = {
             
                 const user = await User.create({
                   username,
-                  email: email.toLowerCase(),
+                  email,
                   password,
+                  mobile,
                   userStatus,
                   otpToken,
                   otpTokenExpire,

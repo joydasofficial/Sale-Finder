@@ -8,15 +8,39 @@ import CssBaseline from "@mui/material/CssBaseline";
 import Typography from "@mui/material/Typography";
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 
+//GQL
+import { authClient } from "../../services/authClient";
+import { REGISTER_MUTATION } from '../../graphql/gqlMutations'
+
+const registerMutation = async (fData) => {
+  const username = fData.get('name');
+  const email = fData.get('email');
+  const password = fData.get('password');
+  const cpassword = fData.get('cpassword');
+  const mobile = fData.get('mobile');
+
+  const iData = {
+    username, email, password, cpassword, mobile
+  }
+
+  const { data, loading, error } = await authClient.mutate({
+    mutation: REGISTER_MUTATION,
+    variables:{
+      input: {
+        ...iData
+      }
+    }
+  })
+
+  console.log(data);
+}
+
 const Register = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
-		const data = new FormData(e.currentTarget);
-		console.log({
-      email: data.get('email'),
-      password: data.get('password'),
-    });
-
+		const fData = new FormData(e.currentTarget);
+		registerMutation(fData)
+   
   };
 
   const theme = createTheme();
@@ -114,6 +138,8 @@ const Register = () => {
                   fullWidth
                   inputProps={{ inputMode: "numeric", pattern: "[0-9]*" }}
                   label="Mobile"
+                  name="mobile"
+                  id="mobile"
                   variant="outlined"
                 />
                 <Button variant="contained" type="submit" sx={{ mt: 2, mb: 2 }}>
