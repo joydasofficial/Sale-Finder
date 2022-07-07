@@ -23,6 +23,13 @@ const userSchema = new mongoose.Schema({
       minlength: 6,
       select: false,
   },
+  mobile: {
+    type: String,
+    required: true,
+    unique: true,
+    minlength: 10,
+    maxlength: 11,
+  },
   userStatus: {
     type: String,
     required: true,

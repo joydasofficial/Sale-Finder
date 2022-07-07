@@ -20,6 +20,12 @@ const PORT = process.env.PORT || 5000;
 
 app.use(express.json());
 // app.use(errorHandler);
+// enable cors
+var corsOptions = {
+    origin: 'http://localhost:8000/',
+    credentials: true // <-- REQUIRED backend setting
+  };
+app.use(cors(corsOptions));
 
 const schema = makeExecutableSchema({
     typeDefs,
@@ -34,7 +40,7 @@ const server = new ApolloServer({
     context: ({ req, reply }) => ({
         req,
         reply,
-      }),
+    }),
 })
 
 server.listen(PORT, ()=>{
