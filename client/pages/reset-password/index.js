@@ -10,9 +10,9 @@ import { createTheme, ThemeProvider } from '@mui/material/styles';
 
 //GQL
 import { authClient } from "../../services/authClient";
-import { REGISTER_MUTATION } from '../../graphql/gqlMutations'
+import { RESET_PASSWORD } from '../../graphql/gqlMutations'
 
-const Register = () => {
+const resetPassword = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
 		const fData = new FormData(e.currentTarget);
@@ -20,22 +20,15 @@ const Register = () => {
   };
 
   const registerMutation = async (fData) => {
-    const username = fData.get('name');
+    const resetToken = fData.get('resetToken');
     const email = fData.get('email');
     const password = fData.get('password');
     const cpassword = fData.get('cpassword');
-    const mobile = fData.get('mobile');
   
-    const iData = {
-      username, email, password, cpassword, mobile
-    }
-  
-    const { data, loading, error } = await authClient.mutate({
-      mutation: REGISTER_MUTATION,
+    const { data } = await authClient.mutate({
+      mutation: RESET_PASSWORD,
       variables:{
-        input: {
-          ...iData
-        }
+        resetToken, email, password, cpassword
       }
     })
     console.log(data);
@@ -82,7 +75,7 @@ const Register = () => {
               }}
             >
               <Typography component="h1" variant="h5">
-                Register
+                Reset Password
               </Typography>
 
               <Box
@@ -95,10 +88,9 @@ const Register = () => {
                   margin="normal"
                   required
                   fullWidth
-                  id="name"
-                  label="Name"
-                  name="name"
-                  autoComplete="name"
+                  id="resetToken"
+                  label="Reset Token"
+                  name="resetToken"
                   autoFocus
                 />
                 <TextField
@@ -131,16 +123,6 @@ const Register = () => {
                   id="cpassword"
                   autoComplete="current-password"
                 />
-                <TextField
-                  margin="normal"
-                  required
-                  fullWidth
-                  inputProps={{ inputMode: "numeric", pattern: "[0-9]*" }}
-                  label="Mobile"
-                  name="mobile"
-                  id="mobile"
-                  variant="outlined"
-                />
                 <Button variant="contained" type="submit" sx={{ mt: 2, mb: 2 }}>
                   Register
                 </Button>
@@ -156,6 +138,6 @@ const Register = () => {
       </ThemeProvider>
     </>
   );
-};
+}
 
-export default Register;
+export default resetPassword

@@ -1,4 +1,4 @@
-import React from "react";
+import React from 'react'
 import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
@@ -9,44 +9,31 @@ import Typography from "@mui/material/Typography";
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 
 //GQL
-import { authClient } from "../../services/authClient";
-import { REGISTER_MUTATION } from '../../graphql/gqlMutations'
+import { FORGOT_PASSWORD } from '../../graphql/gqlMutations';
+import { authClient } from '../../services/authClient'
 
-const Register = () => {
-  const handleSubmit = (e) => {
+const forgotPassword = () => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-		const fData = new FormData(e.currentTarget);
-		registerMutation(fData)
-  };
+    const fData = new FormData(e.currentTarget);
 
-  const registerMutation = async (fData) => {
-    const username = fData.get('name');
     const email = fData.get('email');
-    const password = fData.get('password');
-    const cpassword = fData.get('cpassword');
-    const mobile = fData.get('mobile');
-  
-    const iData = {
-      username, email, password, cpassword, mobile
-    }
-  
-    const { data, loading, error } = await authClient.mutate({
-      mutation: REGISTER_MUTATION,
-      variables:{
-        input: {
-          ...iData
-        }
+
+    const {data} = await authClient.mutate({
+      mutation: FORGOT_PASSWORD,
+      variables: {
+        email,
       }
     })
+
     console.log(data);
-    return data;
   }
-  
+
   const theme = createTheme();
 
   return (
     <>
-      <ThemeProvider theme={theme}>
+        <ThemeProvider theme={theme}>
         <Grid
           container
           component="main"
@@ -82,7 +69,7 @@ const Register = () => {
               }}
             >
               <Typography component="h1" variant="h5">
-                Register
+                Forget Password
               </Typography>
 
               <Box
@@ -95,59 +82,19 @@ const Register = () => {
                   margin="normal"
                   required
                   fullWidth
-                  id="name"
-                  label="Name"
-                  name="name"
-                  autoComplete="name"
-                  autoFocus
-                />
-                <TextField
-                  margin="normal"
-                  required
-                  fullWidth
                   id="email"
                   label="Email Address"
                   name="email"
                   autoComplete="email"
                   autoFocus
                 />
-                <TextField
-                  margin="normal"
-                  required
-                  fullWidth
-                  name="password"
-                  label="Password"
-                  type="password"
-                  id="password"
-                  autoComplete="current-password"
-                />
-                <TextField
-                  margin="normal"
-                  required
-                  fullWidth
-                  name="cpassword"
-                  label="Confirm Password"
-                  type="password"
-                  id="cpassword"
-                  autoComplete="current-password"
-                />
-                <TextField
-                  margin="normal"
-                  required
-                  fullWidth
-                  inputProps={{ inputMode: "numeric", pattern: "[0-9]*" }}
-                  label="Mobile"
-                  name="mobile"
-                  id="mobile"
-                  variant="outlined"
-                />
                 <Button variant="contained" type="submit" sx={{ mt: 2, mb: 2 }}>
-                  Register
+                  Submit
                 </Button>
               </Box>
               <Grid item xs={12} align="center" sx={{ pt: "10px" }}>
                 <Link href="#" variant="body2">
-                  {"Already have an account? Sign In"}
+                  {"Go back"}
                 </Link>
               </Grid>
             </Box>
@@ -155,7 +102,7 @@ const Register = () => {
         </Grid>
       </ThemeProvider>
     </>
-  );
-};
+  )
+}
 
-export default Register;
+export default forgotPassword

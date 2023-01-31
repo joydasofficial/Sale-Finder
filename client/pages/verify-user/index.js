@@ -1,4 +1,4 @@
-import React from "react";
+import React from 'react'
 import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
@@ -9,44 +9,35 @@ import Typography from "@mui/material/Typography";
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 
 //GQL
-import { authClient } from "../../services/authClient";
-import { REGISTER_MUTATION } from '../../graphql/gqlMutations'
+import { VERIFY_USER } from '../../graphql/gqlMutations';
+import { userClient } from '../../services/gqlClient'
 
-const Register = () => {
-  const handleSubmit = (e) => {
+const verifyUser = () => {
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-		const fData = new FormData(e.currentTarget);
-		registerMutation(fData)
-  };
+    const fData = new FormData(e.currentTarget);
 
-  const registerMutation = async (fData) => {
-    const username = fData.get('name');
     const email = fData.get('email');
-    const password = fData.get('password');
-    const cpassword = fData.get('cpassword');
-    const mobile = fData.get('mobile');
-  
-    const iData = {
-      username, email, password, cpassword, mobile
-    }
-  
-    const { data, loading, error } = await authClient.mutate({
-      mutation: REGISTER_MUTATION,
-      variables:{
-        input: {
-          ...iData
-        }
+    const otpToken = fData.get('otp');
+    const jwt = fData.get('jwt');
+
+    const gqlClient = await userClient(jwt);
+    const {data} = await gqlClient.mutate({
+      mutation: VERIFY_USER,
+      variables: {
+        email, otpToken
       }
     })
+
     console.log(data);
-    return data;
   }
-  
+
   const theme = createTheme();
 
   return (
     <>
-      <ThemeProvider theme={theme}>
+        <ThemeProvider theme={theme}>
         <Grid
           container
           component="main"
@@ -82,7 +73,7 @@ const Register = () => {
               }}
             >
               <Typography component="h1" variant="h5">
-                Register
+                Verify Email
               </Typography>
 
               <Box
@@ -91,16 +82,6 @@ const Register = () => {
                 onSubmit={handleSubmit}
                 sx={{ mt: 1 }}
               >
-                <TextField
-                  margin="normal"
-                  required
-                  fullWidth
-                  id="name"
-                  label="Name"
-                  name="name"
-                  autoComplete="name"
-                  autoFocus
-                />
                 <TextField
                   margin="normal"
                   required
@@ -115,47 +96,30 @@ const Register = () => {
                   margin="normal"
                   required
                   fullWidth
-                  name="password"
-                  label="Password"
-                  type="password"
-                  id="password"
-                  autoComplete="current-password"
-                />
-                <TextField
-                  margin="normal"
-                  required
-                  fullWidth
-                  name="cpassword"
-                  label="Confirm Password"
-                  type="password"
-                  id="cpassword"
-                  autoComplete="current-password"
-                />
-                <TextField
-                  margin="normal"
-                  required
-                  fullWidth
+                  name="otp"
+                  label="OTP"
                   inputProps={{ inputMode: "numeric", pattern: "[0-9]*" }}
-                  label="Mobile"
-                  name="mobile"
-                  id="mobile"
-                  variant="outlined"
+                  id="otp"
+                />
+                <TextField
+                  margin="normal"
+                  required
+                  fullWidth
+                  id="jwt"
+                  label="JWT"
+                  name="jwt"
+                  autoFocus
                 />
                 <Button variant="contained" type="submit" sx={{ mt: 2, mb: 2 }}>
-                  Register
+                  Verify
                 </Button>
               </Box>
-              <Grid item xs={12} align="center" sx={{ pt: "10px" }}>
-                <Link href="#" variant="body2">
-                  {"Already have an account? Sign In"}
-                </Link>
-              </Grid>
             </Box>
           </Grid>
         </Grid>
       </ThemeProvider>
     </>
-  );
-};
+  )
+}
 
-export default Register;
+export default verifyUser
